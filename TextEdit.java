@@ -1,24 +1,22 @@
 import java.util.ArrayList;
 import java.lang.StringBuilder;
-import java.io.IOException;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.FileReader;
-import java.nio.file.FileAlreadyExistsException;
+import java.io.*;
+import javax.swing.*;
+import java.awt.event.*;
 
 public class TextEdit {
     private File f;
     private ArrayList<char[]> buff;
     private int[] cursor;
     private int topLine;
+    private boolean insertMode;
 
     public TextEdit(String fName) throws IOException {
         f = new File(fName);
         cursor = new int[2];
         topLine = 0;
         buff = new ArrayList<>();
+        insertMode = false;
 
         if (f.isDirectory()) {
             System.out.println("File is a directory");
@@ -39,10 +37,21 @@ public class TextEdit {
         }
         String fName = args[0];
         TextEdit tEdit = new TextEdit(fName);
-        tEdit.output();
+        JFrame frame = new JFrame();
+        boolean cont = true;
+        int next;
+        initFrame(frame, tEdit);
+
+        while (cont) {
+            //tEdit.output();
+            //next = in.read();
+            //cont = handleUserInput(next, inputMode, tEdit);
+        }
+        // in.close();
+        tEdit.save();
     }
 
-    private void output() {
+    public void output() {
         System.out.println(CLEAR_STRING);
         int numLines = Math.min(DEFAULT_SIZE, buff.size() - topLine);
         StringBuilder outBuilder = new StringBuilder();
@@ -56,7 +65,7 @@ public class TextEdit {
         System.out.println(outBuilder);
     }
 
-    private boolean save() throws IOException {
+    public boolean save() throws IOException {
         if (f.isDirectory()) {
             return false;
         }
@@ -74,6 +83,32 @@ public class TextEdit {
             return true;
         }
         return false;
+    }
+
+    public void exitInsertMode() {
+        System.out.println("exiting insert mode");
+        insertMode = false;
+    }
+
+    public void enterInsertMode() {
+        insertMode = true;
+    }
+
+    private static void initFrame(JFrame frame, TextEdit tEdit) {
+        frame.setSize(800, 600);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        JComponent content = (JComponent) frame.getContentPane();
+
+        content.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke("ESCAPE"), "exitInsert");
+        content.getActionMap().put("exitInsert", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                tEdit.exitInsertMode();
+            }
+        });
+
+        frame.setVisible(true);
     }
 
     // move cursor left
