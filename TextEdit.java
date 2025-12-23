@@ -1,8 +1,6 @@
 import java.util.ArrayList;
 import java.lang.StringBuilder;
 import java.io.*;
-import javax.swing.*;
-import java.awt.event.*;
 
 public class TextEdit {
     private File f;
@@ -37,17 +35,16 @@ public class TextEdit {
         }
         String fName = args[0];
         TextEdit tEdit = new TextEdit(fName);
-        JFrame frame = new JFrame();
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         boolean cont = true;
         int next;
-        initFrame(frame, tEdit);
 
         while (cont) {
-            //tEdit.output();
-            //next = in.read();
-            //cont = handleUserInput(next, inputMode, tEdit);
+            tEdit.output();
+            next = in.read();
+            cont = tEdit.handleUserInput(next);
         }
-        // in.close();
+        in.close();
         tEdit.save();
     }
 
@@ -85,6 +82,10 @@ public class TextEdit {
         return false;
     }
 
+    public boolean handleUserInput(int next) {
+        return true;
+    }
+
     public void exitInsertMode() {
         System.out.println("exiting insert mode");
         insertMode = false;
@@ -92,23 +93,6 @@ public class TextEdit {
 
     public void enterInsertMode() {
         insertMode = true;
-    }
-
-    private static void initFrame(JFrame frame, TextEdit tEdit) {
-        frame.setSize(800, 600);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        JComponent content = (JComponent) frame.getContentPane();
-
-        content.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-                .put(KeyStroke.getKeyStroke("ESCAPE"), "exitInsert");
-        content.getActionMap().put("exitInsert", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                tEdit.exitInsertMode();
-            }
-        });
-
-        frame.setVisible(true);
     }
 
     // move cursor left
