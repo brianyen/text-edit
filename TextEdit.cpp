@@ -74,76 +74,87 @@ bool handle_exit_route(bool& write) {
 }
 
 bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
-        int next, bool& write, bool& insert) {
+        int& col_mem, int& next, bool& write, bool& insert) {
     switch (next) {
         case ':':
             output_command(BASE_COMMAND);
             return handle_exit_route(write);
-        case 'j':
-            return false;
         case 'i':
             insert = true;
             break;
-        case '\n':
-        case '\r':
+        case '0':
+            cursor_x = 0;
+            break;
+        case '$':
+            cursor_x = full_buff[cursor_y].size() + 1;
+            break;
+        case 'k':
         case KEY_UP:
             if (cursor_y > 0) { 
                 --cursor_y;
-                cursor_x = min((int) full_buff[cursor_y].size(), cursor_x);
+                cursor_x = min((int) full_buff[cursor_y].size(), max(col_mem, cursor_x));
             } else {
                 cursor_x = 0;
+                col_mem = cursor_x;
             }
             break;
+        case 'j':
         case KEY_DOWN:
             if (cursor_y < full_buff.size() - 1) {
                 ++cursor_y;
-                cursor_x = min((int) full_buff[cursor_y].size(), cursor_x);
+                cursor_x = min((int) full_buff[cursor_y].size(), max(col_mem, cursor_x));
             } else {
-                cursor_x = full_buff[cursor_y].size();
+                cursor_x = full_buff[cursor_y].size() + 1;
+                col_mem = cursor_x;
             }
             break;
+        case 'h':
         case KEY_LEFT:
             if (cursor_x > 0) {
                 --cursor_x;
             } else if (cursor_y > 0) {
                 --cursor_y;
-                cursor_x = full_buff[cursor_y].size();
+                cursor_x = full_buff[cursor_y].size() + 1;
             }
+            col_mem = cursor_x;
             break;
+        case 'l':
         case KEY_RIGHT:
-            if (cursor_x < full_buff[cursor_y].size()) {
+            if (cursor_x < full_buff[cursor_y].size() + 1) {
                 ++cursor_x;
             } else if (cursor_y < full_buff.size() - 1) {
                 ++cursor_y;
                 cursor_x = 0;
             }
+            col_mem = cursor_x;
             break;
     }
     return true;
 }
 
 bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
-        int next, bool& write, bool& insert) {
+        int& col_mem, int& next, bool& write, bool& insert) {
     return true;
 }
 
 bool handle_input(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
-        int next, bool& write, bool& insert) {
+        int& col_mem, int& next, bool& write, bool& insert) {
     if (next == KEY_ESCAPE) {
         insert = false;
         return true;
     }
     if (insert) {
-        return handle_insert(full_buff, cursor_y, cursor_x, next, write, insert);
+        return handle_insert(full_buff, cursor_y, cursor_x, col_mem, next, write, insert);
     } else {
-        return handle_command(full_buff, cursor_y, cursor_x, next, write, insert);
+        return handle_command(full_buff, cursor_y, cursor_x, col_mem, next, write, insert);
     }
 }
 
 int main(int argc, char* argv[]) {
     vector<string> full_buff;
-    int cursor[2] = {0, 0};
+    int cursor_x, cursor_y;
     int top_line, left_col;
+    int col_mem = 0;
     bool insert = false;
     bool write = false;
 
@@ -172,9 +183,9 @@ int main(int argc, char* argv[]) {
     curs_set(0);
     
     while (cont) {
-        output(full_buff, top_line, left_col, cursor[0], cursor[1]);
+        output(full_buff, top_line, left_col, cursor_y, cursor_x);
         next = getch();
-        cont = handle_input(full_buff, cursor[0], cursor[1], next, write, insert);
+        cont = handle_input(full_buff, cursor_y, cursor_x, col_mem, next, write, insert);
         if (write) {
             // should save to file
             cout << "Should write!\n";
