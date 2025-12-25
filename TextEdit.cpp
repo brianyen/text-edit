@@ -9,6 +9,8 @@
 using namespace std;
 
 const int KEY_ESCAPE = 27;
+const int KEY_TAB = 9;
+const int KEY_BACK = 127;
 string BASE_COMMAND = ":";
 
 bool invalid_write(string& f_name) {
@@ -73,6 +75,51 @@ bool handle_exit_route(bool& write) {
     }
 }
 
+void move_up(vector<string>& full_buff, int& cursor_y, int& cursor_x, int& col_mem) {
+    if (cursor_y > 0) { 
+        --cursor_y;
+        cursor_x = min((int) full_buff[cursor_y].size(), max(col_mem, cursor_x));
+    } else {
+        cursor_x = 0;
+        col_mem = cursor_x;
+    }
+}
+
+void move_down(vector<string>& full_buff, int& cursor_y, int& cursor_x, int& col_mem) {
+    if (cursor_y < full_buff.size() - 1) {
+        ++cursor_y;
+        cursor_x = min((int) full_buff[cursor_y].size(), max(col_mem, cursor_x));
+    } else {
+        cursor_x = full_buff[cursor_y].size();
+        col_mem = cursor_x;
+    }
+}
+
+void move_left(vector<string>& full_buff, int& cursor_y, int& cursor_x, int& col_mem) {
+    if (cursor_x > 0) {
+        --cursor_x;
+    } else if (cursor_y > 0) {
+        --cursor_y;
+        cursor_x = full_buff[cursor_y].size();
+    }
+    col_mem = cursor_x;
+}
+
+void move_right(vector<string>& full_buff, int& cursor_y, int& cursor_x, int& col_mem) {
+    if (cursor_x < full_buff[cursor_y].size()) {
+        ++cursor_x;
+    } else if (cursor_y < full_buff.size() - 1) {
+        ++cursor_y;
+        cursor_x = 0;
+    }
+    col_mem = cursor_x;
+}
+
+void insert_char(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
+        int& col_mem, int& next) {
+
+}
+
 bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
         int& col_mem, int& next, bool& write, bool& insert) {
     switch (next) {
@@ -86,47 +133,23 @@ bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x,
             cursor_x = 0;
             break;
         case '$':
-            cursor_x = full_buff[cursor_y].size() + 1;
+            cursor_x = full_buff[cursor_y].size();
             break;
         case 'k':
         case KEY_UP:
-            if (cursor_y > 0) { 
-                --cursor_y;
-                cursor_x = min((int) full_buff[cursor_y].size(), max(col_mem, cursor_x));
-            } else {
-                cursor_x = 0;
-                col_mem = cursor_x;
-            }
+            move_up(full_buff, cursor_y, cursor_x, col_mem);
             break;
         case 'j':
         case KEY_DOWN:
-            if (cursor_y < full_buff.size() - 1) {
-                ++cursor_y;
-                cursor_x = min((int) full_buff[cursor_y].size(), max(col_mem, cursor_x));
-            } else {
-                cursor_x = full_buff[cursor_y].size() + 1;
-                col_mem = cursor_x;
-            }
+            move_down(full_buff, cursor_y, cursor_x, col_mem);
             break;
         case 'h':
         case KEY_LEFT:
-            if (cursor_x > 0) {
-                --cursor_x;
-            } else if (cursor_y > 0) {
-                --cursor_y;
-                cursor_x = full_buff[cursor_y].size() + 1;
-            }
-            col_mem = cursor_x;
+            move_left(full_buff, cursor_y, cursor_x, col_mem);
             break;
         case 'l':
         case KEY_RIGHT:
-            if (cursor_x < full_buff[cursor_y].size() + 1) {
-                ++cursor_x;
-            } else if (cursor_y < full_buff.size() - 1) {
-                ++cursor_y;
-                cursor_x = 0;
-            }
-            col_mem = cursor_x;
+            move_right(full_buff, cursor_y, cursor_x, col_mem);
             break;
     }
     return true;
@@ -134,6 +157,58 @@ bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x,
 
 bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
         int& col_mem, int& next, bool& write, bool& insert) {
+    string to_keep;
+    string to_shift;
+    switch (next) {
+        case '\n':
+            if (cursor_x == full_buff[cursor_y].size()) {
+                full_buff.insert(full_buff.begin() + cursor_y + 1, "");
+            } else if (cursor_x == 0) {
+                full_buff.insert(full_buff.begin() + cursor_y, "");
+            } else {
+                to_keep = full_buff[cursor_y].substr(0, cursor_x);
+                to_shift = full_buff[cursor_y].substr(cursor_x);
+                full_buff[cursor_y] = to_keep;
+                full_buff.insert(full_buff.begin() + cursor_y + 1, to_shift);
+            }
+            ++cursor_y;
+            cursor_x = 0;
+            col_mem = 0;
+            break;
+        case KEY_BACK:
+            if (cursor_x == 0) {
+                if (cursor_y > 0) {
+                    --cursor_y;
+                    cursor_x = full_buff[cursor_y].size();
+                    full_buff[cursor_y] += full_buff[cursor_y + 1];
+                    full_buff.erase(full_buff.begin() + cursor_y + 1);
+                }
+            } else {
+                full_buff[cursor_y].erase(cursor_x - 1, 1);
+                --cursor_x;
+                col_mem = cursor_x;
+            }
+            break;
+        case KEY_UP:
+            move_up(full_buff, cursor_y, cursor_x, col_mem);
+            break;
+        case KEY_DOWN:
+            move_down(full_buff, cursor_y, cursor_x, col_mem);
+            break;
+        case KEY_LEFT:
+            move_left(full_buff, cursor_y, cursor_x, col_mem);
+            break;
+        case KEY_RIGHT:
+            move_right(full_buff, cursor_y, cursor_x, col_mem);
+            break;
+        case KEY_TAB:
+            next = '\t';
+        default:
+            cout << next;
+            if (isprint(next)) {
+                insert_char(full_buff, cursor_y, cursor_x, col_mem, next);
+            }
+    }
     return true;
 }
 
