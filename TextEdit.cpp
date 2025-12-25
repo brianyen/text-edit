@@ -34,7 +34,7 @@ void output(vector<string>& full_buff, int& top_line, int& left_col,
         if (full_buff[top_line + i].size() >= left_col) {
             mvprintw(i, 0, full_buff[top_line + i].substr(left_col, w).c_str());
         }
-        if (i == cursor_y) {
+        if (i + top_line == cursor_y) {
             mvprintw(i, cursor_x - left_col, "_");
         }
     }
@@ -48,6 +48,27 @@ void output_command(string& command) {
     clrtoeol();
     mvprintw(h, 0, command.c_str());
     refresh();
+}
+
+void window_update(int& cursor_y, int& cursor_x, int& top_line, int& left_col) {
+    int w, h;
+    getmaxyx(stdscr, h, w);
+    h -= 3;
+    w -= 1;
+    top_line = max(min(top_line, cursor_y), cursor_y - h);
+    left_col = max(min(left_col, cursor_x), cursor_x - h);
+/*    if (cursor_y - top_line > h) {
+        top_line = cursor_y - h;
+    }
+    if (cursor_x - left_col > w) {
+        left_col = cursor_x - w;
+    }
+    if (cursor_y - top_line < 0) {
+        top_line = cursor_y;
+    }
+    if (cursor_x - left_col < 0) {
+        left_col = cursor_x;
+    }*/
 }
 
 // eventually add dirty flag for override
@@ -113,11 +134,6 @@ void move_right(vector<string>& full_buff, int& cursor_y, int& cursor_x, int& co
         cursor_x = 0;
     }
     col_mem = cursor_x;
-}
-
-void insert_char(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
-        int& col_mem, int& next) {
-
 }
 
 bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
@@ -204,9 +220,9 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x,
         case KEY_TAB:
             next = '\t';
         default:
-            cout << next;
             if (isprint(next)) {
-                insert_char(full_buff, cursor_y, cursor_x, col_mem, next);
+                full_buff[cursor_y].insert(cursor_x, 1, next);
+                ++cursor_x;
             }
     }
     return true;
@@ -261,6 +277,7 @@ int main(int argc, char* argv[]) {
         output(full_buff, top_line, left_col, cursor_y, cursor_x);
         next = getch();
         cont = handle_input(full_buff, cursor_y, cursor_x, col_mem, next, write, insert);
+        window_update(cursor_y, cursor_x, top_line, left_col);
         if (write) {
             // should save to file
             cout << "Should write!\n";
