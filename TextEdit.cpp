@@ -279,8 +279,15 @@ int main(int argc, char* argv[]) {
         cont = handle_input(full_buff, cursor_y, cursor_x, col_mem, next, write, insert);
         window_update(cursor_y, cursor_x, top_line, left_col);
         if (write) {
-            // should save to file
-            cout << "Should write!\n";
+            ofstream f_out(f_name);
+            if (!f_out.fail()) {
+                for (vector<string>::iterator it = full_buff.begin(); it != full_buff.end(); ++it) {
+                    f_out << *it << "\n";
+                }
+            } else {
+                cout << "Cannot write to file";
+            }
+            f_out.close();
             write = false;
         }
     }
