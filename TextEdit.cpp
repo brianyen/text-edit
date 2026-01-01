@@ -19,7 +19,7 @@ class state_node {
         int start;
         int length;
         list<string> old_text;
-}
+};
 
 bool invalid_write(string& f_name) {
     ofstream f(f_name, ios::app);
@@ -150,6 +150,20 @@ bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x,
         case '$':
             cursor_x = full_buff[cursor_y].size();
             break;
+        case 'u':
+            if (undo_stack.size() > 0) {
+                state_node prev_block = undo_stack.back();
+                undo_stack.pop_back();
+                full_buff.erase(full_buff.begin() + prev_block.start, full_buff.begin() + prev_block.start + prev_block.length);
+                int size = prev_block.old_text.size();
+                for (int i = 0; i < size; ++i) {
+                    full_buff.insert(full_buff.begin() + prev_block.start, prev_block.old_text.front());
+                    prev_block.old_text.pop_front();
+                }
+                cursor_x = 0;
+                cursor_y = prev_block.start;
+            }
+            break;
         case 'k':
         case KEY_UP:
             move_up(full_buff, cursor_y, cursor_x, col_mem);
@@ -178,7 +192,7 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int&
         case '\n':
             if (cursor_y < undo_block.start) {
                 int diff = undo_block.start - cursor_y;
-                for (int i = undo_block.start - 1; i >= undo_block.start - diff; ++i) {
+                for (int i = undo_block.start - 1; i >= undo_block.start - diff; --i) {
                     undo_block.old_text.push_front(full_buff[i]);
                 }
                 undo_block.start = cursor_y;
@@ -212,7 +226,7 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int&
                 if (cursor_y > 0) {
                     if (cursor_y < undo_block.start) {
                         int diff = undo_block.start - cursor_y;
-                        for (int i = undo_block.start - 1; i >= undo_block.start - diff; ++i) {
+                        for (int i = undo_block.start - 1; i >= undo_block.start - diff; --i) {
                             undo_block.old_text.push_front(full_buff[i]);
                         }
                         undo_block.start = cursor_y - 1;
@@ -236,7 +250,7 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int&
 
                 if (cursor_y < undo_block.start) {
                     int diff = undo_block.start - cursor_y;
-                    for (int i = undo_block.start - 1; i >= undo_block.start - diff; ++i) {
+                    for (int i = undo_block.start - 1; i >= undo_block.start - diff; --i) {
                         undo_block.old_text.push_front(full_buff[i]);
                     }
                     undo_block.start = cursor_y;
