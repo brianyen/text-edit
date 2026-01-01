@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <list>
 #include <string>
 #include <algorithm>
 #include <csignal>
@@ -12,6 +13,13 @@ const int KEY_ESCAPE = 27;
 const int KEY_TAB = 9;
 const int KEY_BACK = 127;
 string BASE_COMMAND = ":";
+
+class state_node {
+    public:
+        int start;
+        int length;
+        list<string> old_text;
+}
 
 bool invalid_write(string& f_name) {
     ofstream f(f_name, ios::app);
@@ -57,18 +65,6 @@ void window_update(int& cursor_y, int& cursor_x, int& top_line, int& left_col) {
     w -= 1;
     top_line = max(min(top_line, cursor_y), cursor_y - h);
     left_col = max(min(left_col, cursor_x), cursor_x - h);
-/*    if (cursor_y - top_line > h) {
-        top_line = cursor_y - h;
-    }
-    if (cursor_x - left_col > w) {
-        left_col = cursor_x - w;
-    }
-    if (cursor_y - top_line < 0) {
-        top_line = cursor_y;
-    }
-    if (cursor_x - left_col < 0) {
-        left_col = cursor_x;
-    }*/
 }
 
 // eventually add dirty flag for override
@@ -137,13 +133,16 @@ void move_right(vector<string>& full_buff, int& cursor_y, int& cursor_x, int& co
 }
 
 bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
-        int& col_mem, int& next, bool& write, bool& insert) {
+        int& col_mem, int& next, bool& write, bool& insert, state_node& undo_block, vector<state_node>& undo_stack) {
     switch (next) {
         case ':':
             output_command(BASE_COMMAND);
             return handle_exit_route(write);
         case 'i':
             insert = true;
+            undo_block.start = cursor_y;
+            undo_block.length = 1;
+            undo_block.old_text.push_back(full_buff[cursor_y]);
             break;
         case '0':
             cursor_x = 0;
@@ -171,12 +170,29 @@ bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x,
     return true;
 }
 
-bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
-        int& col_mem, int& next, bool& write, bool& insert) {
+bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int& col_mem, 
+        int& next, bool& write, bool& insert, state_node& undo_block, vector<state_node>& undo_stack) {
     string to_keep;
     string to_shift;
     switch (next) {
         case '\n':
+            if (cursor_y < undo_block.start) {
+                int diff = undo_block.start - cursor_y;
+                for (int i = undo_block.start - 1; i >= undo_block.start - diff; ++i) {
+                    undo_block.old_text.push_front(full_buff[i]);
+                }
+                undo_block.start = cursor_y;
+                undo_block.length += diff + 1;
+            } else if (cursor_y >= undo_block.start + undo_block.length) {
+                int diff = 1 + cursor_y - undo_block.start - undo_block.length;
+                for (int i = 0; i < diff; ++i) {
+                    int idx = undo_block.start + undo_block.length + i;
+                    undo_block.old_text.push_back(full_buff[idx]);
+                }
+                undo_block.length += diff + 1;
+            } else if (cursor_y >= undo_block.start && cursor_y < undo_block.start + undo_block.length) {
+                undo_block.length += 1;
+            } 
             if (cursor_x == full_buff[cursor_y].size()) {
                 full_buff.insert(full_buff.begin() + cursor_y + 1, "");
             } else if (cursor_x == 0) {
@@ -194,12 +210,45 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x,
         case KEY_BACK:
             if (cursor_x == 0) {
                 if (cursor_y > 0) {
+                    if (cursor_y < undo_block.start) {
+                        int diff = undo_block.start - cursor_y;
+                        for (int i = undo_block.start - 1; i >= undo_block.start - diff; ++i) {
+                            undo_block.old_text.push_front(full_buff[i]);
+                        }
+                        undo_block.start = cursor_y - 1;
+                        undo_block.length += diff;
+                    } else if (cursor_y >= undo_block.start + undo_block.length) {
+                        int diff = 1 + cursor_y - undo_block.start - undo_block.length;
+                        for (int i = 0; i < diff; ++i) {
+                            int idx = undo_block.start + undo_block.length + i;
+                            undo_block.old_text.push_back(full_buff[idx]);
+                        }
+                        undo_block.length += diff - 1;
+                    } else {
+                        undo_block.length -= 1;
+                    }
                     --cursor_y;
                     cursor_x = full_buff[cursor_y].size();
                     full_buff[cursor_y] += full_buff[cursor_y + 1];
                     full_buff.erase(full_buff.begin() + cursor_y + 1);
                 }
             } else {
+
+                if (cursor_y < undo_block.start) {
+                    int diff = undo_block.start - cursor_y;
+                    for (int i = undo_block.start - 1; i >= undo_block.start - diff; ++i) {
+                        undo_block.old_text.push_front(full_buff[i]);
+                    }
+                    undo_block.start = cursor_y;
+                    undo_block.length += diff;
+                } else if (cursor_y >= undo_block.start + undo_block.length) {
+                    int diff = cursor_y - undo_block.start - undo_block.length + 1;
+                    for (int i = 0; i < diff; ++i) {
+                        int idx = undo_block.start + undo_block.length + i;
+                        undo_block.old_text.push_back(full_buff[idx]);
+                    }
+                    undo_block.length = cursor_y - undo_block.start + 1;
+                }
                 full_buff[cursor_y].erase(cursor_x - 1, 1);
                 --cursor_x;
                 col_mem = cursor_x;
@@ -221,6 +270,21 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x,
             next = '\t';
         default:
             if (isprint(next)) {
+                if (cursor_y < undo_block.start) {
+                    int diff = undo_block.start - cursor_y;
+                    for (int i = undo_block.start - 1; i >= undo_block.start - diff; ++i) {
+                        undo_block.old_text.push_front(full_buff[i]);
+                    }
+                    undo_block.start = cursor_y;
+                    undo_block.length += diff;
+                } else if (cursor_y >= undo_block.start + undo_block.length) {
+                    int diff = cursor_y - undo_block.start - undo_block.length + 1;
+                    for (int i = 0; i < diff; ++i) {
+                        int idx = undo_block.start + undo_block.length + i;
+                        undo_block.old_text.push_back(full_buff[idx]);
+                    }
+                    undo_block.length = cursor_y - undo_block.start + 1;
+                }
                 full_buff[cursor_y].insert(cursor_x, 1, next);
                 ++cursor_x;
             }
@@ -228,21 +292,26 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x,
     return true;
 }
 
-bool handle_input(vector<string>& full_buff, int& cursor_y, int& cursor_x, 
-        int& col_mem, int& next, bool& write, bool& insert) {
+bool handle_input(vector<string>& full_buff, int& cursor_y, int& cursor_x, int& col_mem, 
+        int& next, bool& write, bool& insert, state_node& undo_block, vector<state_node>& undo_stack) {
     if (next == KEY_ESCAPE) {
         insert = false;
+        state_node new_block = undo_block;
+        undo_stack.push_back(new_block);
+        undo_block.old_text.clear();
         return true;
     }
     if (insert) {
-        return handle_insert(full_buff, cursor_y, cursor_x, col_mem, next, write, insert);
+        return handle_insert(full_buff, cursor_y, cursor_x, col_mem, next, write, insert, undo_block, undo_stack);
     } else {
-        return handle_command(full_buff, cursor_y, cursor_x, col_mem, next, write, insert);
+        return handle_command(full_buff, cursor_y, cursor_x, col_mem, next, write, insert, undo_block, undo_stack);
     }
 }
 
 int main(int argc, char* argv[]) {
     vector<string> full_buff;
+    vector<state_node> undo_stack;
+    state_node undo_block;
     int cursor_x, cursor_y;
     int top_line, left_col;
     int col_mem = 0;
@@ -276,7 +345,7 @@ int main(int argc, char* argv[]) {
     while (cont) {
         output(full_buff, top_line, left_col, cursor_y, cursor_x);
         next = getch();
-        cont = handle_input(full_buff, cursor_y, cursor_x, col_mem, next, write, insert);
+        cont = handle_input(full_buff, cursor_y, cursor_x, col_mem, next, write, insert, undo_block, undo_stack);
         window_update(cursor_y, cursor_x, top_line, left_col);
         if (write) {
             ofstream f_out(f_name);
