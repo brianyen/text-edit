@@ -157,7 +157,7 @@ bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x,
                 full_buff.erase(full_buff.begin() + prev_block.start, full_buff.begin() + prev_block.start + prev_block.length);
                 int size = prev_block.old_text.size();
                 for (int i = 0; i < size; ++i) {
-                    full_buff.insert(full_buff.begin() + prev_block.start, prev_block.old_text.front());
+                    full_buff.insert(full_buff.begin() + prev_block.start + i, prev_block.old_text.front());
                     prev_block.old_text.pop_front();
                 }
                 cursor_x = 0;
@@ -226,7 +226,7 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int&
                 if (cursor_y > 0) {
                     if (cursor_y < undo_block.start) {
                         int diff = undo_block.start - cursor_y;
-                        for (int i = undo_block.start - 1; i >= undo_block.start - diff; --i) {
+                        for (int i = undo_block.start - 1; i >= undo_block.start - diff - 1; --i) {
                             undo_block.old_text.push_front(full_buff[i]);
                         }
                         undo_block.start = cursor_y - 1;
@@ -239,7 +239,8 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int&
                         }
                         undo_block.length += diff - 1;
                     } else {
-                        undo_block.length -= 1;
+                        undo_block.old_text.push_front(full_buff[cursor_y - 1]);
+                        undo_block.start -= 1;
                     }
                     --cursor_y;
                     cursor_x = full_buff[cursor_y].size();
@@ -247,7 +248,6 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int&
                     full_buff.erase(full_buff.begin() + cursor_y + 1);
                 }
             } else {
-
                 if (cursor_y < undo_block.start) {
                     int diff = undo_block.start - cursor_y;
                     for (int i = undo_block.start - 1; i >= undo_block.start - diff; --i) {
