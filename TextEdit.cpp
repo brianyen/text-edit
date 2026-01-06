@@ -141,7 +141,7 @@ bool handle_command(vector<string>& full_buff, int& cursor_y, int& cursor_x,
         case 'i':
             insert = true;
             undo_block.start = cursor_y;
-            undo_block.length = 1;
+            undo_block.length = -1;
             undo_block.old_text.push_back(full_buff[cursor_y]);
             break;
         case '0':
@@ -190,6 +190,9 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int&
     string to_shift;
     switch (next) {
         case '\n':
+            if (undo_block.length < 0) {
+                undo_block.length = 1;
+            }
             if (cursor_y < undo_block.start) {
                 int diff = undo_block.start - cursor_y;
                 for (int i = undo_block.start - 1; i >= undo_block.start - diff; --i) {
@@ -222,6 +225,9 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int&
             col_mem = 0;
             break;
         case KEY_BACK:
+            if (undo_block.length < 0) {
+                undo_block.length = 1;
+            }
             if (cursor_x == 0) {
                 if (cursor_y > 0) {
                     if (cursor_y < undo_block.start) {
@@ -284,6 +290,9 @@ bool handle_insert(vector<string>& full_buff, int& cursor_y, int& cursor_x, int&
             next = '\t';
         default:
             if (isprint(next)) {
+                if (undo_block.length < 0) {
+                    undo_block.length = 1;
+                }
                 if (cursor_y < undo_block.start) {
                     int diff = undo_block.start - cursor_y;
                     for (int i = undo_block.start - 1; i >= undo_block.start - diff; ++i) {
@@ -311,7 +320,9 @@ bool handle_input(vector<string>& full_buff, int& cursor_y, int& cursor_x, int& 
     if (next == KEY_ESCAPE) {
         insert = false;
         state_node new_block = undo_block;
-        undo_stack.push_back(new_block);
+        if (new_block.length >= 0) {
+            undo_stack.push_back(new_block);
+        }
         undo_block.old_text.clear();
         return true;
     }
